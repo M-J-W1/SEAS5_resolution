@@ -300,6 +300,66 @@ Difference maps:
   --title "3° Forecast Minus Native Forecast Skill vs 0.25° Altimetry"
 ```
 
+Background workflow script
+
+For routine runs, use the wrapper script:
+
+- `scripts/run_fixed025_workflow.sh`
+
+It launches the three fixed-`0.25°` analyses in parallel:
+
+- native `0.25°` forecast vs fixed `0.25°` altimetry
+- `1°` forecast remapped to `0.25°` vs fixed `0.25°` altimetry
+- `3°` forecast remapped to `0.25°` vs fixed `0.25°` altimetry
+
+It then generates:
+
+- the three publication-style skill-map figures
+- the two experiment-minus-native difference figures
+
+Recommended first test:
+
+```bash
+nohup env DOMAIN=pacific_small MAX_STARTS=4 bash scripts/run_fixed025_workflow.sh > logs/workflow.out 2>&1 &
+```
+
+Full-domain production run:
+
+```bash
+nohup env DOMAIN=global bash scripts/run_fixed025_workflow.sh > logs/workflow.out 2>&1 &
+```
+
+How to monitor the run:
+
+```bash
+tail -f logs/workflow.out
+```
+
+Inspect per-step logs:
+
+```bash
+ls -ltr logs
+```
+
+Important script options:
+
+- `DOMAIN=pacific_small` uses `lon=180..195`, `lat=-7.5..7.5`
+- `DOMAIN=global` runs the full domain
+- `MAX_STARTS=4` is useful for a smoke test
+- omitting `MAX_STARTS` uses all available starts
+- `START_MONTH=1` would restrict the workflow to January starts only
+
+Expected full-domain outputs from the wrapper:
+
+- `results/skill_025deg_global_fixed025.nc`
+- `results/skill_1deg_on025_global.nc`
+- `results/skill_3deg_on025_global.nc`
+- `results/skill_025deg_global_fixed025.png`
+- `results/skill_1deg_on025_global.png`
+- `results/skill_3deg_on025_global.png`
+- `results/skill_diff_1deg_minus_native_global.png`
+- `results/skill_diff_3deg_minus_native_global.png`
+
 Current interpretation from the regional all-starts test
 
 In the central Pacific box, using all starts and verifying everything against

@@ -10,6 +10,7 @@ __pycache__/
 results/
 *.nc
 *.png
+logs/
 
 PET0.ESMF_LogFile
 bilinear_*_peri.nc
