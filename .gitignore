@@ -1,0 +1,16 @@
+.venv/
+.mamba/
+.tools/
+.codex
+
+__pycache__/
+*.py[cod]
+
+results/
+*.nc
+*.png
+
+PET0.ESMF_LogFile
+bilinear_*_peri.nc
+
+.DS_Store
