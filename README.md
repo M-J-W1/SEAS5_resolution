@@ -18,7 +18,8 @@ secondary/contextual analysis.
 Data
 
 - Native SEAS5: `/home/ahu/archive/MMforecast/SEAS5_OCEAN025`
-- Archived `1x1` SEAS5: `/home/ahu/archive/MMforecast/SEAS5-ECMWF`
+- Legacy archived `1x1` SEAS5: `/home/ahu/archive/MMforecast/SEAS5-ECMWF`
+- Yearly all-starts `1x1` SEAS5: `/home/aniau/yuxinw/SEAS5_hindcast`
 - Monthly altimetry anomalies: `/home/aniau/archive/Altimetry/processed/cmems_20260407.nc`
 
 Observed archive structure
@@ -26,29 +27,42 @@ Observed archive structure
 - Native SEAS5 SSH files are on a curvilinear ocean grid with `nav_lat`,
   `nav_lon`, and `time_counter`
 - Native SEAS5 exposes `ensmean` products directly
-- The archived `1x1` SEAS5 data are stored by member under `ens0` to `ens24`;
-  the code computes the ensemble mean on load
+- The legacy archived `1x1` SEAS5 data are stored by member under `ens0` to
+  `ens24`; the code computes the ensemble mean on load
+- The yearly all-starts `1x1` SEAS5 archive is stored under `1993` to `2016`
+  with flat filenames containing both start date and member id; the code also
+  computes the ensemble mean on load
 - The altimetry product is on a regular `0.25°` grid covering
   `lat=-65.5..65.5`, `lon=0..359.75`
-- Shared SSH hindcast initializations currently span `1993010100` through
-  `2018100100`, with four starts per year: January, April, July, October
+- The yearly all-starts archive spans `1993010100` through `2016120100`, with
+  twelve starts per year and `25` ensemble members per start
+- The native/legacy shared archive still spans quarterly starts only
 
 Current workflow
 
 The implemented analysis pipeline can:
 
-- discover hindcast starts from the archive layout
+- discover hindcast starts from both regular-grid archive layouts
 - load native and archived `1°` SEAS5 SSH
 - load monthly altimetry anomalies
 - remove linear trends gridpoint-by-gridpoint
-- generate `3°` forecast products from `1°` SEAS5 using boxcar averaging
+- generate `2°` and `3°` forecast products from `1°` SEAS5 using boxcar averaging
 - compute `ACC` and `RMSE` across hindcast starts for each lead month
 - verify forecasts either:
   - at matched resolution
   - against fixed `0.25°` altimetry observations
+  - against fixed `1°` altimetry observations
 - subset runs to a regional domain for fast testing
 - produce publication-style skill maps
 - produce experiment-minus-baseline difference maps
+
+Archive-selection rule
+
+- Regular-grid runs use exactly one archive source at a time:
+  `yearly_allstarts` or `legacy_4starts`
+- The code does not merge starts across those two regular-grid archives within a
+  single run
+- Native-grid runs remain separate and only use the native archive
 
 Verification design
 
@@ -56,6 +70,9 @@ Primary analysis:
 
 - Native forecast on regular `0.25°` grid vs altimetry at `0.25°`
 - `1°` forecast remapped to `0.25°` vs altimetry at `0.25°`
+- `1°` forecast vs fixed `1°` altimetry
+- `2°` forecast remapped to fixed `1°` altimetry
+- `3°` forecast remapped to fixed `1°` altimetry
 - `3°` forecast remapped to `0.25°` vs altimetry at `0.25°`
 
 Secondary analysis:
@@ -137,8 +154,10 @@ python3 scripts/run_skill_analysis.py inspect
 
 Core run options:
 
-- `--resolution {0.25,1,3}`
-- `--verification {matched,fixed_025}`
+- `--resolution {0.25,1,2,3}`
+- `--verification {matched,fixed,fixed_025,fixed_1}`
+- `--fixed-obs-resolution {0.25,1}`
+- `--regular-archive-source {yearly_allstarts,legacy_4starts}`
 - `--max-starts N`
 - `--start-month {1..12}`
 - `--lon-min --lon-max --lat-min --lat-max`
@@ -146,10 +165,16 @@ Core run options:
 
 Notes:
 
-- `--verification fixed_025` matters for `1°` and `3°` runs
+- `--verification fixed_025` matters for `1°`, `2°`, and `3°` runs
+- `--verification fixed_1` runs the new all-starts skill design against fixed
+  `1°` altimetry
+- `--regular-archive-source yearly_allstarts` is the default for regular-grid
+  `1°`, `2°`, and `3°` runs
+- `--regular-archive-source legacy_4starts` preserves the older quarterly
+  regular-grid workflow without mixing it with the yearly all-starts archive
 - the native `0.25°` route always verifies against the `0.25°` altimetry grid
 - `0.25°` native runs should use `.mamba/envs/esmpy-891/bin/python`
-- `1°` and `3°` regular-grid runs can use `.venv/bin/python`
+- `1°`, `2°`, and `3°` regular-grid runs can use `.venv/bin/python`
 
 Recommended fast test domain
 
@@ -197,36 +222,37 @@ Native forecast vs fixed `0.25°` altimetry:
 
 All-starts central-Pacific runs
 
-Native forecast:
-
-```bash
-.mamba/envs/esmpy-891/bin/python scripts/run_skill_analysis.py run \
-  --resolution 0.25 \
-  --lon-min 180 --lon-max 195 \
-  --lat-min -7.5 --lat-max 7.5 \
-  --output results/skill_025deg_central_pacific_allstarts.nc
-```
-
-`1°` forecast on fixed `0.25°` observations:
+`1°` forecast on fixed `1°` observations:
 
 ```bash
 .venv/bin/python scripts/run_skill_analysis.py run \
   --resolution 1 \
-  --verification fixed_025 \
+  --verification fixed_1 \
   --lon-min 180 --lon-max 195 \
   --lat-min -7.5 --lat-max 7.5 \
-  --output results/skill_1deg_on025_central_pacific_allstarts.nc
+  --output results/skill_1deg_on1_central_pacific_allstarts.nc
 ```
 
-`3°` forecast on fixed `0.25°` observations:
+`2°` forecast on fixed `1°` observations:
+
+```bash
+.venv/bin/python scripts/run_skill_analysis.py run \
+  --resolution 2 \
+  --verification fixed_1 \
+  --lon-min 180 --lon-max 195 \
+  --lat-min -7.5 --lat-max 7.5 \
+  --output results/skill_2deg_on1_central_pacific_allstarts.nc
+```
+
+`3°` forecast on fixed `1°` observations:
 
 ```bash
 .venv/bin/python scripts/run_skill_analysis.py run \
   --resolution 3 \
-  --verification fixed_025 \
+  --verification fixed_1 \
   --lon-min 180 --lon-max 195 \
   --lat-min -7.5 --lat-max 7.5 \
-  --output results/skill_3deg_on025_central_pacific_allstarts.nc
+  --output results/skill_3deg_on1_central_pacific_allstarts.nc
 ```
 
 How to run the full domain

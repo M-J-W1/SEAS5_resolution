@@ -95,6 +95,15 @@ def build_regular_target_grid(source: xr.DataArray, target_deg: float) -> xr.Dat
     return xr.Dataset(coords={"lat": lat, "lon": lon})
 
 
+def build_grid_from_coordinates(source: xr.DataArray) -> xr.Dataset:
+    return xr.Dataset(
+        coords={
+            "lat": source["lat"].astype(np.float32),
+            "lon": source["lon"].astype(np.float32),
+        }
+    )
+
+
 def regrid_native_to_regular(
     native: xr.DataArray,
     target_grid: xr.Dataset,

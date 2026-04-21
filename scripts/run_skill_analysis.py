@@ -10,7 +10,11 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from seas5_resolution.config import DataPaths, DomainSpec
-from seas5_resolution.io import available_initializations
+from seas5_resolution.io import (
+    available_native_initializations,
+    available_regular_initializations,
+    available_shared_initializations,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--resolution",
         type=float,
         required=True,
-        choices=(0.25, 1.0, 3.0),
+        choices=(0.25, 1.0, 2.0, 3.0),
         help="Target analysis resolution in degrees",
     )
     run_parser.add_argument(
@@ -49,9 +53,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument(
         "--verification",
-        choices=("matched", "fixed_025"),
+        choices=("matched", "fixed", "fixed_025", "fixed_1"),
         default="matched",
-        help="Verification design: matched resolution or fixed 0.25-degree observations",
+        help="Verification design: matched resolution or fixed-resolution observations",
+    )
+    run_parser.add_argument(
+        "--fixed-obs-resolution",
+        type=float,
+        choices=(0.25, 1.0),
+        default=None,
+        help="Observation target resolution in degrees when --verification=fixed",
+    )
+    run_parser.add_argument(
+        "--regular-archive-source",
+        choices=("yearly_allstarts", "legacy_4starts"),
+        default="yearly_allstarts",
+        help="Regular-grid archive to use for 1/2/3 degree runs",
     )
     run_parser.add_argument("--lon-min", type=float, default=None, help="Optional domain minimum longitude")
     run_parser.add_argument("--lon-max", type=float, default=None, help="Optional domain maximum longitude")
@@ -62,13 +79,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 def cmd_inspect(limit: int) -> int:
     paths = DataPaths()
-    starts = available_initializations(paths)
-    print(f"Discovered {len(starts)} shared SSH initializations")
-    print("First starts:")
-    for value in starts[:limit]:
+    yearly_starts = available_regular_initializations(paths, archive_source="yearly_allstarts")
+    legacy_starts = available_regular_initializations(paths, archive_source="legacy_4starts")
+    native_starts = available_native_initializations(paths)
+    shared_legacy_starts = available_shared_initializations(paths, archive_source="legacy_4starts")
+    print(f"Discovered {len(yearly_starts)} yearly all-starts regular-grid SSH initializations")
+    print(f"Discovered {len(legacy_starts)} legacy 4-start regular-grid SSH initializations")
+    print(f"Discovered {len(native_starts)} native-grid SSH initializations")
+    print(f"Discovered {len(shared_legacy_starts)} native/legacy shared initializations")
+    print("First yearly starts:")
+    for value in yearly_starts[:limit]:
         print(f"  {value}")
-    print("Last starts:")
-    for value in starts[-limit:]:
+    print("Last yearly starts:")
+    for value in yearly_starts[-limit:]:
+        print(f"  {value}")
+    print("First legacy starts:")
+    for value in legacy_starts[:limit]:
+        print(f"  {value}")
+    print("Last legacy starts:")
+    for value in legacy_starts[-limit:]:
         print(f"  {value}")
     return 0
 
@@ -80,6 +109,8 @@ def cmd_run(
     start_month: int | None,
     domain: DomainSpec | None,
     verification: str,
+    fixed_obs_resolution: float | None,
+    regular_archive_source: str,
 ) -> int:
     from seas5_resolution.pipeline import run_native_to_quarter_degree_skill, run_regular_grid_skill
 
@@ -100,6 +131,8 @@ def cmd_run(
             start_month=start_month,
             domain=domain,
             verification=verification,
+            fixed_obs_resolution_deg=fixed_obs_resolution,
+            regular_archive_source=regular_archive_source,
             output_path=output,
         )
 
@@ -110,7 +143,12 @@ def cmd_run(
 def main() -> int:
     args = build_parser().parse_args()
     domain = None
-    domain_values = [args.lon_min, args.lon_max, args.lat_min, args.lat_max]
+    domain_values = [
+        getattr(args, "lon_min", None),
+        getattr(args, "lon_max", None),
+        getattr(args, "lat_min", None),
+        getattr(args, "lat_max", None),
+    ]
     if any(value is not None for value in domain_values):
         if not all(value is not None for value in domain_values):
             raise ValueError("All of --lon-min, --lon-max, --lat-min, and --lat-max are required together")
@@ -130,6 +168,8 @@ def main() -> int:
             args.start_month,
             domain,
             args.verification,
+            args.fixed_obs_resolution,
+            args.regular_archive_source,
         )
     raise ValueError(f"Unsupported command: {args.command}")
 

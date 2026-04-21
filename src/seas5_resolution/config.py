@@ -8,6 +8,7 @@ from pathlib import Path
 class DataPaths:
     native_root: Path = Path("/home/ahu/archive/MMforecast/SEAS5_OCEAN025")
     regridded_root: Path = Path("/home/ahu/archive/MMforecast/SEAS5-ECMWF")
+    regridded_yearly_root: Path = Path("/home/aniau/yuxinw/SEAS5_hindcast")
     altimetry_path: Path = Path("/home/aniau/archive/Altimetry/processed/cmems_20260407.nc")
 
 
